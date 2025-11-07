@@ -205,10 +205,6 @@ _graph.add_edge(START, "check_timeouts")
 _graph.add_edge("check_timeouts", "think")
 _graph.add_edge("think", "decide")
 _graph.add_edge("decide", "run_actions")
-
-def router(s: OrchestratorState) -> str:
-    st = s.get("state")
-    return "END" if st in ("DONE", "FAILED", "RETRACTED") else "check_timeouts"
-
-_graph.add_conditional_edges("run_actions", router, {"check_timeouts": "check_timeouts", "END": END})
+# Single-tick: each invoke runs through once then returns control to the caller
+_graph.add_edge("run_actions", END)
 app = _graph.compile()
