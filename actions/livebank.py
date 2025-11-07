@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 from rich import print as rprint
 
-from teller_ai.config import cfg_path
+from config import cfg_path
 
 OTP_EXPECTED_KEY = "otp_expected"
 

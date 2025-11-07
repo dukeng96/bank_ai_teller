@@ -1,7 +1,7 @@
 from __future__ import annotations
 import time
-from teller_ai.orchestrator.graph import app
-from teller_ai.orchestrator.state import OrchestratorState
+from orchestrator.graph import app
+from orchestrator.state import OrchestratorState
 
 # This test drives the happy path; it does not mock the HTTP LLM. In CI, you may want to mock it.
 
