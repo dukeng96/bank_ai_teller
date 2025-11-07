@@ -5,6 +5,9 @@ import re
 from typing import Any, Dict, List
 
 import requests
+from jsonschema import validate
+from jsonschema.exceptions import ValidationError
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from config import cfg_path
 
@@ -23,12 +26,45 @@ class LLMDecider:
         self.trace = bool(cfg_path("trace", "enabled", default=False))
         if not self.url:
             raise RuntimeError("Missing llm.url in config.yml")
+        self.schema = {
+            "type": "object",
+            "required": ["intent", "params", "response"],
+            "properties": {
+                "intent": {"type": "string"},
+                "params": {"type": "object"},
+                "response": {
+                    "type": "object",
+                    "required": ["type", "content"],
+                    "properties": {
+                        "type": {"type": "string"},
+                        "content": {"type": "string"},
+                    },
+                    "additionalProperties": True,
+                },
+                "meta": {"type": "object"},
+            },
+            "additionalProperties": True,
+        }
 
     def _extract_json(self, text: str) -> Dict[str, Any]:
+        fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL | re.IGNORECASE)
+        if fence:
+            return json.loads(fence.group(1))
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if not match:
             raise DecisionError("No JSON found in LLM response")
         return json.loads(match.group(0))
+
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=0.5, min=0.5, max=4),
+        retry=retry_if_exception_type((requests.RequestException,)),
+    )
+    def _post_llm(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        response = requests.post(self.url, json=payload, timeout=self.timeout)
+        response.raise_for_status()
+        return response.json()
 
     def decide(
         self,
@@ -56,9 +92,7 @@ class LLMDecider:
             print("\n[TRACE LLM] POST prompt:", prompt)
 
         try:
-            response = requests.post(self.url, json={"query": prompt}, timeout=self.timeout)
-            response.raise_for_status()
-            data = response.json()
+            data = self._post_llm({"query": prompt})
         except Exception as exc:
             if self.trace:
                 print("[TRACE LLM] HTTP error:", exc)
@@ -86,17 +120,30 @@ class LLMDecider:
             }
 
         if self.strict:
-            if "intent" not in decision or "response" not in decision:
+            if not isinstance(decision, dict):
                 decision = {
                     "intent": "cancel",
                     "params": {},
                     "response": {"type": "text", "content": "Xin lỗi, đầu ra không hợp lệ."},
-                    "meta": {"error": "missing keys"},
+                    "meta": {"error": "non-object decision"},
                 }
-            if "params" not in decision or not isinstance(decision.get("params"), dict):
-                decision["params"] = {}
-            if allowed_intents and decision.get("intent") not in allowed_intents:
-                decision["intent"] = "cancel"
+            else:
+                try:
+                    validate(instance=decision, schema=self.schema)
+                except ValidationError as exc:
+                    if self.trace:
+                        print("[TRACE LLM] Schema validation error:", exc)
+                    decision = {
+                        "intent": "cancel",
+                        "params": {},
+                        "response": {"type": "text", "content": "Xin lỗi, đầu ra không hợp lệ."},
+                        "meta": {"error": f"schema: {str(exc)}"},
+                    }
+                else:
+                    if "params" not in decision or not isinstance(decision.get("params"), dict):
+                        decision["params"] = {}
+                    if allowed_intents and decision.get("intent") not in allowed_intents:
+                        decision["intent"] = "cancel"
 
         if self.trace:
             print("[TRACE LLM] Decision:", decision)
