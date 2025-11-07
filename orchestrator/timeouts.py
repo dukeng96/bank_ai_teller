@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from typing import Any, Dict
 
-from teller_ai.config import cfg_path
+from config import cfg_path
 
 TIMER_KEY = "timers"
 TRACE_ENABLED = bool(cfg_path("trace", "enabled", default=False))

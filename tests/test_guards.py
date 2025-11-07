@@ -1,5 +1,5 @@
 from __future__ import annotations
-from teller_ai.fsm.guards import apply_after, eval_guard
+from fsm.guards import apply_after, eval_guard
 
 def test_eval_guard() -> None:
     ctx = {"otp_fail": 3}

@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 
 import requests
 
-from teller_ai.config import cfg_path
+from config import cfg_path
 
 
 class DecisionError(Exception):
