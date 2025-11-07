@@ -1,11 +1,12 @@
 from __future__ import annotations
 import sys
 import time
-from typing import Dict, Any
+from typing import Any, Dict
+
 from rich import print as rprint
 
-from orchestrator.graph import app
-from orchestrator.state import OrchestratorState
+from teller_ai.orchestrator.graph import app
+from teller_ai.orchestrator.state import OrchestratorState
 
 SCENARIOS = {
     "happy": [
