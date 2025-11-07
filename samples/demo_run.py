@@ -5,8 +5,8 @@ from typing import Any, Dict
 
 from rich import print as rprint
 
-from teller_ai.orchestrator.graph import app
-from teller_ai.orchestrator.state import OrchestratorState
+from orchestrator.graph import app
+from orchestrator.state import OrchestratorState
 
 SCENARIOS = {
     "happy": [

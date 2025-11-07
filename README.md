@@ -8,8 +8,8 @@ Production-grade, config-driven orchestrator + agent for **voice-controlled card
 2. Optional: adjust [`config.yml`](config.yml) for your LLM endpoint, tracing, or demo behaviours.
 3. Run the orchestrator demo:
    ```bash
-   python src/main.py            # defaults to the "happy" scenario
-   python src/main.py stockout   # or pick another canned scenario
+   python main.py            # defaults to the "happy" scenario
+   python main.py stockout   # or pick another canned scenario
    ```
 
 The entry point requires no environment variables—`config.yml` provides all defaults. Toggle `trace.enabled` to view
@@ -18,16 +18,14 @@ full prompts, raw LLM output, FSM decisions, transitions, actions, emitted signa
 ## Project layout
 
 ```
-config.yml                  # single source of truth for runtime configuration
-src/
-  main.py                   # demo entry point
-  teller_ai/
-    actions/                # device/API/UI/TTS demo actions
-    config.py               # cached YAML loader with cfg_path helper
-    fsm/                    # rules + prompts (conversation-only prompts kept)
-    llm_client/             # HTTP LLM decider
-    orchestrator/           # LangGraph FSM nodes, timeouts, state typing
-    samples/                # scenario driver for demos/tests
+config.yml              # single source of truth for runtime configuration
+main.py                 # demo entry point
+actions/                # device/API/UI/TTS demo actions
+config.py               # cached YAML loader with cfg_path helper
+fsm/                    # rules + prompts (conversation-only prompts kept)
+llm_client/             # HTTP LLM decider
+orchestrator/           # LangGraph FSM nodes, timeouts, state typing
+samples/                # scenario driver for demos/tests
 ```
 
 ## Testing

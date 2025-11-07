@@ -8,8 +8,8 @@ fmt:
 	ruff format .
 
 lint:
-	ruff check .
-	mypy src
+        ruff check .
+        mypy .
 
 test:
 	pytest -q --maxfail=1 --disable-warnings
