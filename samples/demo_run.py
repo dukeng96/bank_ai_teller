@@ -1,7 +1,8 @@
 from __future__ import annotations
 import sys
 import time
-from typing import Dict, Any
+from typing import Any, Dict
+
 from rich import print as rprint
 
 from orchestrator.graph import app

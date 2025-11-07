@@ -1,0 +1,16 @@
+llm:
+  url: "http://10.165.24.200:30424/query"
+  timeout_sec: 12
+  strict: true
+
+trace:
+  enabled: true
+
+demo:
+  stock: ok
+  print: ok
+  otp_length: 6
+  otp_fixed: 482913
+
+logging:
+  level: INFO

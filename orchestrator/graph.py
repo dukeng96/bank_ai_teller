@@ -1,17 +1,19 @@
 from __future__ import annotations
+
 import json
 import os
 import time
 from typing import Any, Dict, List
 
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import START, END, StateGraph
 from yaml import safe_load
 
-from orchestrator.state import OrchestratorState
-from llm_client.HttpDecider import LLMDecider
+from config import cfg_path
+from llm_client.LLMDecider import LLMDecider
 from actions.livebank import run_action
-from fsm.guards import eval_guard, apply_after
-from orchestrator.timeouts import set_timer, clear_timer, check_expired
+from fsm.guards import apply_after, eval_guard
+from orchestrator.state import OrchestratorState
+from orchestrator.timeouts import check_expired, clear_timer, set_timer
 
 # Load rules
 RULES_PATH = os.path.join(os.path.dirname(__file__), "..", "fsm", "rules.yaml")
@@ -31,7 +33,19 @@ for fname in os.listdir(PROMPTS_DIR):
                 PROMPTS[st] = {}
 
 # Single decider instance (HTTP LLM)
-decider = LLMDecider()
+DECIDER = LLMDecider()
+TRACE_ENABLED = bool(cfg_path("trace", "enabled", default=False))
+
+DEVICE_DRIVEN_STATES = {
+    "FACE",
+    "ID_SCAN",
+    "NFC_READ",
+    "STOCK_CHECK",
+    "BRANCH_SELECT",
+    "OTP_SEND",
+    "PRINTING",
+    "CARD_PICKUP",
+}
 
 def _allowed_intents(state: str) -> List[str]:
     st_rules: Dict[str, Any] = RULES.get("states", {}).get(state, {})
@@ -54,6 +68,8 @@ def check_timeouts_node(s: OrchestratorState) -> OrchestratorState:
             clear_timer(ctx, "OTP_no_input")
 
     expired = check_expired(ctx, now)
+    if TRACE_ENABLED and expired:
+        print(f"[TRACE NODE check_timeouts] expired={expired}")
     if not expired:
         return s
 
@@ -69,9 +85,18 @@ def check_timeouts_node(s: OrchestratorState) -> OrchestratorState:
 # --- Node 1: think (LLM inference) ---
 def think_node(s: OrchestratorState) -> OrchestratorState:
     st = s["state"]
+    if TRACE_ENABLED:
+        print(f"[TRACE NODE think] state={st} input={s.get('input')}")
+    if st in DEVICE_DRIVEN_STATES:
+        s["decision"] = {"intent": "_no_op", "params": {}, "response": {"type": "none", "content": ""}}
+        s["response"] = {"type": "none", "content": ""}
+        if TRACE_ENABLED:
+            print("[TRACE NODE think] BYPASS device-driven")
+        return s
+
     allowed = _allowed_intents(st)
     prompt_cfg = PROMPTS.get(st, {})
-    decision = decider.decide(st, allowed, s.get("input", {}), prompt_cfg)
+    decision = DECIDER.decide(st, allowed, s.get("input", {}), prompt_cfg)
     s["decision"] = decision
     s["response"] = decision.get("response", {"type": "none", "content": ""})
     return s
@@ -82,6 +107,11 @@ def decide_node(s: OrchestratorState) -> OrchestratorState:
     ctx = s.setdefault("ctx", {})
     state_rules: Dict[str, Any] = RULES.get("states", {}).get(st, {})
     signal = s.get("input", {}).get("signal")
+
+    if TRACE_ENABLED:
+        print(
+            f"[TRACE NODE decide] state={st} signal={signal} intent={s.get('decision', {}).get('intent')}"
+        )
 
     trans: Dict[str, Any] | None = None
 
@@ -115,6 +145,9 @@ def decide_node(s: OrchestratorState) -> OrchestratorState:
     s["actions"] = trans.get("actions", [])
     next_state = trans.get("to", st)
 
+    if TRACE_ENABLED:
+        print(f"[TRACE NODE decide] transition={trans}")
+
     if st != next_state and next_state == "OTP":
         idle_secs = RULES.get("timeouts", {}).get("OTP_no_input")
         if idle_secs:
@@ -132,6 +165,9 @@ def run_actions_node(s: OrchestratorState) -> OrchestratorState:
     now = s.get("now") or time.time()
     signals: List[str] = []
 
+    if TRACE_ENABLED:
+        print(f"[TRACE run_actions] actions={s.get('actions', [])}")
+
     for a in s.get("actions", []):
         if a.get("type") == "clock" and a.get("name") == "start_timer":
             args = a.get("args", {})
@@ -142,7 +178,10 @@ def run_actions_node(s: OrchestratorState) -> OrchestratorState:
             continue
         out = run_action(a, ctx)
         if out.get("signal"):
-            signals.append(out["signal"])  # keep last
+            signals.append(out["signal"])
+
+    if TRACE_ENABLED and signals:
+        print(f"[TRACE run_actions] emitted_signals={signals}")
 
     if signals:
         s["input"] = {"channel": "system", "signal": signals[-1]}
