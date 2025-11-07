@@ -1,0 +1,9 @@
+{
+  "system": "Sau khi gửi OTP, tự động vào state OTP.",
+  "context": {
+    "state": "OTP_SEND",
+    "allowed_intents": [
+      "_auto"
+    ]
+  }
+}

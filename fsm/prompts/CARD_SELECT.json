@@ -1,0 +1,11 @@
+{
+  "system": "Chọn loại thẻ phát hành lại. Nếu lạc đề, 'others' để nhắc lại.",
+  "context": {
+    "state": "CARD_SELECT",
+    "allowed_intents": [
+      "select_card_type",
+      "cancel",
+      "others"
+    ]
+  }
+}

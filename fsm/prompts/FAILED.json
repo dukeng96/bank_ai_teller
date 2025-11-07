@@ -1,0 +1,10 @@
+{
+  "system": "Giao dịch thất bại/huỷ.",
+  "context": {
+    "state": "FAILED",
+    "allowed_intents": [
+      "retry_all",
+      "_auto"
+    ]
+  }
+}

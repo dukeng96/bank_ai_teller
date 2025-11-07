@@ -1,0 +1,11 @@
+{
+  "system": "Hoàn tất giao dịch.",
+  "context": {
+    "state": "DONE",
+    "allowed_intents": [
+      "print_receipt_yes",
+      "print_receipt_no",
+      "_auto"
+    ]
+  }
+}

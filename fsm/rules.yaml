@@ -1,0 +1,350 @@
+# -----------------------------------------------------------------------------
+# Context (counters/flags/timeouts)
+# -----------------------------------------------------------------------------
+counters:
+  id_retry: 0
+  otp_fail: 0
+  # counters for chit-chat / off-topic handling via `others` intent
+  face_others: 0
+  id_others: 0
+  otp_others: 0
+  pickup_others: 0
+flags:
+  stock_checked: false
+  branch_suggested: false
+  risk_flag: false
+timeouts:
+  PRINTING: 120
+  CARD_PICKUP: 45
+  OTP_no_input: 90
+
+# -----------------------------------------------------------------------------
+# States & transitions
+# -----------------------------------------------------------------------------
+states:
+
+  START:
+    declare_loss_card:
+      to: FACE
+      actions:
+        - { type: ui,  name: open_reissue_screen, args: {} }
+        - { type: tts, name: speak, args: { text: "Xin chào, em hỗ trợ phát hành lại thẻ. Anh/chị nhìn vào camera giúp em." } }
+    cancel:
+      to: FAILED
+      actions:
+        - { type: ui,  name: back_home, args: {} }
+        - { type: tts, name: speak, args: { text: "Em kết thúc giao dịch." } }
+    others:
+      to: START
+      actions:
+        - { type: tts, name: speak, args: { text: "Anh/chị đang muốn phát hành lại thẻ đúng không ạ? Vui lòng nói 'phát hành lại thẻ' để bắt đầu." } }
+
+  FACE:
+    face_ok:
+      to: ID_SCAN
+      after: "ctx.face_others = 0"
+      actions:
+        - { type: ui,  name: start_id_scan, args: { sides: front_back } }
+        - { type: tts, name: speak, args: { text: "Đặt CCCD vào khay, quét 2 mặt giúp em." } }
+    face_fail:
+      to: FACE
+      actions:
+        - { type: tts, name: speak, args: { text: "Chưa nhận rõ khuôn mặt, anh/chị điều chỉnh và thử lại giúp em." } }
+    others:
+      guard: "ctx.face_others < 3"
+      to: FACE
+      after: "ctx.face_others += 1"
+      actions:
+        - { type: tts, name: speak, args: { text: "Mình tiếp tục nhé: anh/chị nhìn thẳng vào camera giúp em." } }
+      fallback:
+        to: FAILED
+        actions:
+          - { type: tts, name: speak, args: { text: "Vì chưa nhận được thao tác cần thiết, em tạm kết thúc giao dịch." } }
+          - { type: ui,  name: back_home, args: {} }
+    cancel:
+      to: FAILED
+      actions:
+        - { type: ui,  name: back_home, args: {} }
+
+  ID_SCAN:
+    id_ok:
+      to: NFC_READ
+      after: "ctx.id_retry = 0; ctx.id_others = 0"
+      actions:
+        - { type: ui,  name: start_nfc, args: {} }
+        - { type: tts, name: speak, args: { text: "Đặt CCCD lên vị trí NFC và bấm Xác nhận." } }
+    id_bad:
+      guard: "ctx.id_retry < 3"
+      to: ID_SCAN
+      after: "ctx.id_retry += 1"
+      actions:
+        - { type: tts, name: speak, args: { text: "Ảnh chưa rõ, anh/chị điều chỉnh và quét lại ạ." } }
+      fallback:
+        to: FACE
+        actions:
+          - { type: tts, name: speak, args: { text: "Mình quay lại xác thực khuôn mặt để làm rõ hơn." } }
+    others:
+      guard: "ctx.id_others < 3"
+      to: ID_SCAN
+      after: "ctx.id_others += 1"
+      actions:
+        - { type: tts, name: speak, args: { text: "Anh/chị đặt CCCD vào khay và quét 2 mặt giúp em ạ." } }
+      fallback:
+        to: FAILED
+        actions:
+          - { type: tts, name: speak, args: { text: "Do chưa đủ thao tác cần thiết, em tạm kết thúc giao dịch." } }
+          - { type: ui,  name: back_home, args: {} }
+    cancel:
+      to: FAILED
+      actions:
+        - { type: ui,  name: back_home, args: {} }
+
+  NFC_READ:
+    nfc_ok:
+      to: CARD_SELECT
+      actions:
+        - { type: ui,  name: show_card_catalog, args: {} }
+        - { type: tts, name: speak, args: { text: "Anh/chị chọn loại thẻ muốn phát hành lại." } }
+    nfc_fail:
+      to: NFC_READ
+      actions:
+        - { type: tts, name: speak, args: { text: "Chưa đọc được chip, đặt CCCD đúng vị trí và thử lại ạ." } }
+    others:
+      to: NFC_READ
+      actions:
+        - { type: tts, name: speak, args: { text: "Đặt CCCD lên vị trí NFC và bấm Xác nhận giúp em ạ." } }
+    cancel:
+      to: FAILED
+      actions:
+        - { type: ui,  name: back_home, args: {} }
+
+  CARD_SELECT:
+    select_card_type:
+      to: ACCOUNT_SELECT
+      actions:
+        - { type: ui,  name: show_accounts, args: {} }
+        - { type: tts, name: speak, args: { text: "Anh/chị cho em biết tài khoản để trích phí." } }
+    others:
+      to: CARD_SELECT
+      actions:
+        - { type: tts, name: speak, args: { text: "Anh/chị vui lòng nói tên/hạng thẻ muốn phát hành lại." } }
+    cancel:
+      to: FAILED
+      actions:
+        - { type: ui,  name: back_home, args: {} }
+
+  ACCOUNT_SELECT:
+    select_account:
+      to: STOCK_CHECK
+      actions:
+        - { type: api, name: check_card_stock, args: {} }
+        - { type: tts, name: speak, args: { text: "Em kiểm tra phôi thẻ tại máy..." } }
+    others:
+      to: ACCOUNT_SELECT
+      actions:
+        - { type: tts, name: speak, args: { text: "Anh/chị cho em biết số tài khoản để trích phí ạ." } }
+    cancel:
+      to: FAILED
+      actions:
+        - { type: ui,  name: back_home, args: {} }
+
+  STOCK_CHECK:
+    stock_ok:
+      to: OTP_SEND
+      after: "ctx.stock_checked = true"
+      actions:
+        - { type: api, name: send_otp, args: {} }
+        - { type: tts, name: speak, args: { text: "Em đã gửi OTP, anh/chị đọc hoặc nhập giúp em." } }
+    stock_out:
+      to: BRANCH_SELECT
+      after: "ctx.stock_checked = true; ctx.branch_suggested = true"
+      actions:
+        - { type: ui,  name: suggest_near_branch, args: {} }
+        - { type: tts, name: speak, args: { text: "Máy hiện hết phôi, em gợi ý chi nhánh gần nhất để nhận thẻ." } }
+    others:
+      to: STOCK_CHECK
+      actions:
+        - { type: tts, name: speak, args: { text: "Xin chờ trong giây lát, em đang kiểm tra phôi thẻ." } }
+    cancel:
+      to: FAILED
+      actions:
+        - { type: ui,  name: back_home, args: {} }
+
+  BRANCH_SELECT:
+    confirm_branch:
+      to: OTP_SEND
+      actions:
+        - { type: api, name: send_otp, args: {} }
+        - { type: tts, name: speak, args: { text: "Em đã gửi OTP, anh/chị đọc hoặc nhập giúp em." } }
+    decline_branch:
+      to: FAILED
+      actions:
+        - { type: tts, name: speak, args: { text: "Dạ vâng, em kết thúc giao dịch. Anh/chị có thể chọn chi nhánh khác sau." } }
+        - { type: ui,  name: back_home, args: {} }
+    others:
+      to: BRANCH_SELECT
+      actions:
+        - { type: tts, name: speak, args: { text: "Anh/chị có đồng ý nhận thẻ tại chi nhánh gợi ý không ạ?" } }
+    cancel:
+      to: FAILED
+      actions:
+        - { type: ui,  name: back_home, args: {} }
+
+  OTP_SEND:
+    _auto:
+      to: OTP
+
+  OTP:
+    request_resend_otp:
+      guard: "ctx.otp_fail < 5"
+      to: OTP
+      actions:
+        - { type: api, name: resend_otp, args: {} }
+        - { type: tts, name: speak, args: { text: "Em đã gửi lại OTP, anh/chị nhập giúp em ạ." } }
+    say_otp_code:
+      to: OTP
+      actions:
+        - { type: api, name: verify_otp, args: { otp: "{{params.otp}}" } }
+        - { type: ui,  name: show_spinner, args: { text: "Đang kiểm tra OTP..." } }
+    otp_ok:
+      to: PRINTING
+      after: "ctx.otp_fail = 0; ctx.otp_others = 0"
+      actions:
+        - { type: api, name: print_card, args: {} }
+        - { type: tts, name: speak, args: { text: "Hệ thống đang in thẻ, anh/chị vui lòng chờ." } }
+        - { type: clock, name: start_timer, args: { state: PRINTING, secs: 120 } }
+    otp_wrong:
+      guard: "ctx.otp_fail < 5"
+      to: OTP
+      after: "ctx.otp_fail += 1"
+      actions:
+        - { type: tts, name: speak, args: { text: "Mã OTP chưa đúng, anh/chị nhập lại giúp em ạ." } }
+      fallback:
+        to: FAILED
+        actions:
+          - { type: tts, name: speak, args: { text: "Anh/chị đã nhập sai quá số lần quy định, em kết thúc giao dịch." } }
+          - { type: ui,  name: back_home, args: {} }
+    _timeout_no_input:
+      guard: "ctx.otp_fail < 5"
+      to: OTP
+      after: "ctx.otp_fail += 1"
+      actions:
+        - { type: tts, name: speak, args: { text: "Anh/chị vẫn còn đó chứ ạ? Vui lòng nhập mã OTP giúp em." } }
+      fallback:
+        to: FAILED
+        actions:
+          - { type: tts, name: speak, args: { text: "Em tạm kết thúc vì lâu không nhận được phản hồi." } }
+          - { type: ui,  name: back_home, args: {} }
+    others:
+      guard: "ctx.otp_others < 3"
+      to: OTP
+      after: "ctx.otp_others += 1"
+      actions:
+        - { type: tts, name: speak, args: { text: "Anh/chị vui lòng đọc hoặc nhập mã OTP giúp em." } }
+      fallback:
+        to: FAILED
+        actions:
+          - { type: tts, name: speak, args: { text: "Vì chưa nhận được OTP hợp lệ, em tạm kết thúc giao dịch." } }
+          - { type: ui,  name: back_home, args: {} }
+    cancel:
+      to: FAILED
+      actions:
+        - { type: ui,  name: back_home, args: {} }
+
+  PRINTING:
+    printed:
+      to: CARD_PICKUP
+      actions:
+        - { type: ui,  name: prompt_take_card, args: {} }
+        - { type: tts, name: speak, args: { text: "Anh/chị nhận thẻ tại khe nhận giúp em." } }
+        - { type: clock, name: start_timer, args: { state: CARD_PICKUP, secs: 45 } }
+    print_fail:
+      to: FAILED
+      actions:
+        - { type: tts, name: speak, args: { text: "In thẻ lỗi, em sẽ chuyển hỗ trợ khác hoặc anh/chị quay lại sau." } }
+        - { type: ui,  name: back_home, args: {} }
+    _timeout_PRINTING:
+      to: FAILED
+      actions:
+        - { type: tts, name: speak, args: { text: "Quá thời gian in thẻ, em tạm dừng giao dịch để tránh rủi ro." } }
+        - { type: ui,  name: back_home, args: {} }
+    others:
+      to: PRINTING
+      actions:
+        - { type: tts, name: speak, args: { text: "Hệ thống đang in, anh/chị vui lòng chờ." } }
+    cancel:
+      to: FAILED
+      actions:
+        - { type: ui,  name: back_home, args: {} }
+
+  CARD_PICKUP:
+    card_taken:
+      to: DONE
+      after: "ctx.pickup_others = 0"
+      actions:
+        - { type: ui,  name: offer_receipt, args: {} }
+        - { type: tts, name: speak, args: { text: "Giao dịch thành công. Anh/chị có muốn in biên lai không ạ?" } }
+    timeout_retract:
+      to: RETRACTED
+      actions:
+        - { type: ui,  name: retract_card, args: {} }
+        - { type: tts, name: speak, args: { text: "Thẻ đã bị thu hồi do quá thời gian nhận." } }
+    _timeout_CARD_PICKUP:
+      to: RETRACTED
+      actions:
+        - { type: ui,  name: retract_card, args: {} }
+        - { type: tts, name: speak, args: { text: "Thẻ đã bị thu hồi do quá thời gian nhận." } }
+    others:
+      guard: "ctx.pickup_others < 3"
+      to: CARD_PICKUP
+      after: "ctx.pickup_others += 1"
+      actions:
+        - { type: tts, name: speak, args: { text: "Anh/chị nhận thẻ tại khe nhận giúp em ạ." } }
+      fallback:
+        to: RETRACTED
+        actions:
+          - { type: ui,  name: retract_card, args: {} }
+          - { type: tts, name: speak, args: { text: "Do chưa nhận thẻ, hệ thống đã thu hồi để đảm bảo an toàn." } }
+    cancel:
+      to: RETRACTED
+      actions:
+        - { type: ui,  name: retract_card, args: {} }
+
+  DONE:
+    print_receipt_yes:
+      to: DONE
+      actions:
+        - { type: ui,  name: print_receipt, args: {} }
+        - { type: tts, name: speak, args: { text: "Em in biên lai, cảm ơn anh/chị đã sử dụng dịch vụ." } }
+        - { type: ui,  name: back_home, args: {} }
+    print_receipt_no:
+      to: DONE
+      actions:
+        - { type: tts, name: speak, args: { text: "Cảm ơn anh/chị. Hẹn gặp lại!" } }
+        - { type: ui,  name: back_home, args: {} }
+    _auto:
+      to: DONE
+      actions:
+        - { type: ui,  name: back_home, args: {} }
+
+  RETRACTED:
+    acknowledge:
+      to: FAILED
+      actions:
+        - { type: ui,  name: back_home, args: {} }
+    _auto:
+      to: FAILED
+      actions:
+        - { type: ui,  name: back_home, args: {} }
+
+  FAILED:
+    retry_all:
+      to: START
+      after: "ctx.id_retry = 0; ctx.otp_fail = 0; ctx.branch_suggested = false; ctx.face_others = 0; ctx.id_others = 0; ctx.otp_others = 0; ctx.pickup_others = 0"
+      actions:
+        - { type: ui,  name: open_home, args: {} }
+        - { type: tts, name: speak, args: { text: "Mình bắt đầu lại từ đầu ạ." } }
+    _auto:
+      to: FAILED
+      actions:
+        - { type: ui,  name: back_home, args: {} }

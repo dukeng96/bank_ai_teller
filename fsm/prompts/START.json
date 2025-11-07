@@ -1,0 +1,11 @@
+{
+  "system": "Bạn là bộ phân tích đầu vào cho kiosk ngân hàng. Trả về JSON DUY NHẤT {\"intent\":<string>,\"params\":<object>,\"response\":{\"type\":\"text|none\",\"content\":<string>}}.",
+  "context": {
+    "state": "START",
+    "allowed_intents": [
+      "declare_loss_card",
+      "cancel",
+      "others"
+    ]
+  }
+}

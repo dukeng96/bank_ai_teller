@@ -1,0 +1,11 @@
+{
+  "system": "Chọn tài khoản trích phí. Nếu lạc đề, 'others'.",
+  "context": {
+    "state": "ACCOUNT_SELECT",
+    "allowed_intents": [
+      "select_account",
+      "cancel",
+      "others"
+    ]
+  }
+}

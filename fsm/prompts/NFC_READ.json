@@ -1,0 +1,12 @@
+{
+  "system": "Đọc NFC từ CCCD. Nếu lạc đề, chọn 'others'.",
+  "context": {
+    "state": "NFC_READ",
+    "allowed_intents": [
+      "nfc_ok",
+      "nfc_fail",
+      "cancel",
+      "others"
+    ]
+  }
+}
