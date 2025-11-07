@@ -1,10 +1,41 @@
 # teller_ai — TPBank LiveBank Voice Reissue (LangGraph FSM)
 
-Production-grade, config-driven orchestrator + agent for **voice-controlled card reissue** on LiveBank kiosks. **LLM (HTTP API)** only performs *intent inference*; the **LangGraph** FSM handles transitions, guards, counters, timeouts, rollback, and actions (UI/API/TTS).
+Production-grade, config-driven orchestrator + agent for **voice-controlled card reissue** on LiveBank kiosks.
 
-> This version implements your latest requirements:
->
-> * Uses your **internal HTTP LLM API** only (no OpenAI, no rule-based stub).
-> * Adds a safe fallback intent **`others`** to keep state + TTS re-prompt with thresholds.
-> * Renames node **`inference` → `think`** for clarity.
-> * Removes all OpenAI code and any “Internal*” naming; generic `HttpLLMDecider` is used.
+## Quick start (PyCharm / CLI)
+
+1. Clone repo and install dependencies (`pip install -r requirements.txt`).
+2. Optional: adjust [`config.yml`](config.yml) for your LLM endpoint, tracing, or demo behaviours.
+3. Run the orchestrator demo:
+   ```bash
+   python src/main.py            # defaults to the "happy" scenario
+   python src/main.py stockout   # or pick another canned scenario
+   ```
+
+The entry point requires no environment variables—`config.yml` provides all defaults. Toggle `trace.enabled` to view
+full prompts, raw LLM output, FSM decisions, transitions, actions, emitted signals, and timer events.
+
+## Project layout
+
+```
+config.yml                  # single source of truth for runtime configuration
+src/
+  main.py                   # demo entry point
+  teller_ai/
+    actions/                # device/API/UI/TTS demo actions
+    config.py               # cached YAML loader with cfg_path helper
+    fsm/                    # rules + prompts (conversation-only prompts kept)
+    llm_client/             # HTTP LLM decider
+    orchestrator/           # LangGraph FSM nodes, timeouts, state typing
+    samples/                # scenario driver for demos/tests
+```
+
+## Testing
+
+The default test suite exercises rules, guards, and the happy-path demo shape:
+
+```bash
+pytest
+```
+
+Remember to stub or mock the LLM endpoint when running tests in CI if the real service is unavailable.
