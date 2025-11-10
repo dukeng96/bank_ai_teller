@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from collections.abc import MutableMapping
 from typing import Any, Dict
 
@@ -30,12 +31,23 @@ def _wrap_ctx(ctx: Dict[str, Any]) -> Any:
         return _ContextProxy(ctx)
     return ctx
 
+
+_SANDBOX_GLOBALS: Dict[str, Any] = {
+    "__builtins__": {},
+    # allow JSON-style literals that appear in guard/after expressions authored by non-Python tooling
+    "true": True,
+    "false": False,
+    "null": None,
+}
+
+
 def eval_guard(expr: str, ctx: Dict[str, Any]) -> bool:
     if not expr:
         return True
-    return bool(eval(expr, {}, {"ctx": _wrap_ctx(ctx)}))
+    return bool(eval(expr, _SANDBOX_GLOBALS, {"ctx": _wrap_ctx(ctx)}))
+
 
 def apply_after(expr: str, ctx: Dict[str, Any]) -> None:
     if not expr:
         return
-    exec(expr, {}, {"ctx": _wrap_ctx(ctx)})
+    exec(expr, _SANDBOX_GLOBALS, {"ctx": _wrap_ctx(ctx)})
