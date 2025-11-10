@@ -32,7 +32,13 @@ def _wrap_ctx(ctx: Dict[str, Any]) -> Any:
     return ctx
 
 
-_SANDBOX_GLOBALS: Dict[str, Any] = {"__builtins__": {}}
+_SANDBOX_GLOBALS: Dict[str, Any] = {
+    "__builtins__": {},
+    # allow JSON-style literals that appear in guard/after expressions authored by non-Python tooling
+    "true": True,
+    "false": False,
+    "null": None,
+}
 
 
 def eval_guard(expr: str, ctx: Dict[str, Any]) -> bool:
