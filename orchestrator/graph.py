@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from typing import Any, Dict, List
 
@@ -87,6 +88,7 @@ def think_node(s: OrchestratorState) -> OrchestratorState:
     st = s["state"]
     if TRACE_ENABLED:
         print(f"[TRACE NODE think] state={st} input={s.get('input')}")
+    user_input = s.get("input") or {}
     if st in DEVICE_DRIVEN_STATES:
         s["decision"] = {"intent": "_no_op", "params": {}, "response": {"type": "none", "content": ""}}
         s["response"] = {"type": "none", "content": ""}
@@ -94,9 +96,16 @@ def think_node(s: OrchestratorState) -> OrchestratorState:
             print("[TRACE NODE think] BYPASS device-driven")
         return s
 
+    if user_input.get("channel") == "system" and user_input.get("signal"):
+        s["decision"] = {"intent": "_no_op", "params": {}, "response": {"type": "none", "content": ""}}
+        s["response"] = {"type": "none", "content": ""}
+        if TRACE_ENABLED:
+            print("[TRACE NODE think] BYPASS system signal")
+        return s
+
     allowed = _allowed_intents(st)
     prompt_cfg = PROMPTS.get(st, {})
-    decision = DECIDER.decide(st, allowed, s.get("input", {}), prompt_cfg)
+    decision = DECIDER.decide(st, allowed, user_input, prompt_cfg, s.get("ctx") or {})
     s["decision"] = decision
     s["response"] = decision.get("response", {"type": "none", "content": ""})
     return s
@@ -164,19 +173,24 @@ def run_actions_node(s: OrchestratorState) -> OrchestratorState:
     ctx = s.setdefault("ctx", {})
     now = s.get("now") or time.time()
     signals: List[str] = []
+    params = s.get("decision", {}).get("params") or {}
 
     if TRACE_ENABLED:
         print(f"[TRACE run_actions] actions={s.get('actions', [])}")
 
     for a in s.get("actions", []):
-        if a.get("type") == "clock" and a.get("name") == "start_timer":
-            args = a.get("args", {})
+        rendered_args = _render_args(a.get("args", {}), params)
+        act = dict(a)
+        act["args"] = rendered_args
+
+        if act.get("type") == "clock" and act.get("name") == "start_timer":
+            args = rendered_args
             st_name = args.get("state")
             secs = int(args.get("secs", 0))
             if st_name and secs > 0:
                 set_timer(ctx, st_name, secs, now)
             continue
-        out = run_action(a, ctx)
+        out = run_action(act, ctx)
         if out.get("signal"):
             signals.append(out["signal"])
 
@@ -193,6 +207,25 @@ def run_actions_node(s: OrchestratorState) -> OrchestratorState:
         s["input"] = {}
 
     return s
+
+
+PARAM_PATTERN = re.compile(r"{{\s*params\.([a-zA-Z0-9_]+)\s*}}")
+
+
+def _render_args(args: Any, params: Dict[str, Any]) -> Any:
+    params = params or {}
+    if isinstance(args, dict):
+        return {k: _render_args(v, params) for k, v in args.items()}
+    if isinstance(args, list):
+        return [_render_args(v, params) for v in args]
+    if isinstance(args, str):
+        def _replace(match: re.Match[str]) -> str:
+            key = match.group(1)
+            value = params.get(key, "")
+            return "" if value is None else str(value)
+
+        return PARAM_PATTERN.sub(_replace, args)
+    return args
 
 # Build graph
 _graph = StateGraph(OrchestratorState)

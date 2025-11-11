@@ -1,11 +1,37 @@
 {
-  "system": "Chọn loại thẻ phát hành lại. Nếu lạc đề, 'others' để nhắc lại.",
+  "system": "Bạn là bộ phân tích ý định. Hãy đọc lựa chọn hoặc câu trả lời của khách hàng khi máy đang yêu cầu chọn loại thẻ phát hành lại. Chỉ xác định intent và params, không tạo lời thoại.",
+  "instructions": "Trả về đúng một JSON. Với state CARD_SELECT, response.type=\"none\" và content rỗng. Nếu khách nêu rõ loại thẻ (ví dụ thẻ tín dụng, thẻ ghi nợ, thẻ nội địa), hãy đặt intent=\"select_card_type\" và ghi chi tiết vào params.card_type dạng chữ thường có dấu. Nếu khách từ chối hoặc lạc đề thì lần lượt dùng cancel hoặc others.",
   "context": {
     "state": "CARD_SELECT",
+    "goal": "Xác nhận loại thẻ khách muốn phát hành lại để chuyển sang bước chọn tài khoản.",
     "allowed_intents": [
       "select_card_type",
       "cancel",
       "others"
-    ]
-  }
+    ],
+    "intent_hints": {
+      "select_card_type": "Khách nêu tên loại thẻ cụ thể hoặc yêu cầu loại thẻ nhất định.",
+      "cancel": "Khách muốn dừng, thoát, không làm nữa.",
+      "others": "Khách hỏi lại, yêu cầu hỗ trợ không liên quan hoặc chưa đưa ra loại thẻ." 
+    },
+    "params_note": "Nếu không nghe rõ loại thẻ, để params trống."
+  },
+  "examples": [
+    {
+      "utterance": "Cho tôi làm lại thẻ ghi nợ nội địa",
+      "decision": {
+        "intent": "select_card_type",
+        "params": {"card_type": "thẻ ghi nợ nội địa"},
+        "response": {"type": "none", "content": ""}
+      }
+    },
+    {
+      "utterance": "Tôi chưa rõ, hướng dẫn giúp",
+      "decision": {
+        "intent": "others",
+        "params": {},
+        "response": {"type": "none", "content": ""}
+      }
+    }
+  ]
 }

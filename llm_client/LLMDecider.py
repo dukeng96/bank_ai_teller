@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import requests
 from jsonschema import validate
@@ -72,21 +72,52 @@ class LLMDecider:
         allowed_intents: List[str],
         user_input: Dict[str, Any],
         prompt_cfg: Dict[str, Any],
+        fsm_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         system = (prompt_cfg.get("system") or "").strip()
-        context = prompt_cfg.get("context") or {}
-        payload = (user_input or {}).get("payload", "")
+        context = dict(prompt_cfg.get("context") or {})
+        context.setdefault("state", state)
+        context.setdefault("allowed_intents", allowed_intents)
 
-        prompt = json.dumps(
-            {
-                "system": system,
-                "context": context,
-                "state": state,
-                "allowed_intents": allowed_intents,
-                "user_utterance": payload,
-            },
-            ensure_ascii=False,
-        )
+        if fsm_context:
+            counters: Dict[str, Any] = {}
+            flags: Dict[str, Any] = {}
+            for k in sorted(fsm_context.keys()):
+                value = fsm_context.get(k)
+                if isinstance(value, bool):
+                    flags[k] = value
+                elif isinstance(value, (int, float)):
+                    counters[k] = value
+            if counters:
+                context["session_counters"] = counters
+            if flags:
+                context["session_flags"] = flags
+
+        payload = (user_input or {}).get("payload", "")
+        signal = (user_input or {}).get("signal")
+        channel = (user_input or {}).get("channel")
+
+        context["input_channel"] = channel
+        if signal:
+            context["system_signal"] = signal
+
+        prompt_body: Dict[str, Any] = {
+            "system": system,
+            "context": context,
+            "state": state,
+            "allowed_intents": allowed_intents,
+            "user_utterance": payload,
+        }
+
+        instructions = (prompt_cfg.get("instructions") or "").strip()
+        if instructions:
+            prompt_body["instructions"] = instructions
+
+        examples = prompt_cfg.get("examples")
+        if examples:
+            prompt_body["examples"] = examples
+
+        prompt = json.dumps(prompt_body, ensure_ascii=False)
 
         if self.trace:
             print("\n[TRACE LLM] POST prompt:", prompt)
@@ -144,6 +175,13 @@ class LLMDecider:
                         decision["params"] = {}
                     if allowed_intents and decision.get("intent") not in allowed_intents:
                         decision["intent"] = "cancel"
+
+        response_block = decision.get("response")
+        if not isinstance(response_block, dict):
+            decision["response"] = {"type": "none", "content": ""}
+        else:
+            response_block["type"] = "none"
+            response_block["content"] = ""
 
         if self.trace:
             print("[TRACE LLM] Decision:", decision)

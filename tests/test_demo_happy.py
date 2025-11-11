@@ -42,4 +42,4 @@ def test_happy_path_shape() -> None:
         if st.get("state") in ("DONE", "FAILED", "RETRACTED"):
             break
 
-    assert st.get("state") in ("DONE", "FAILED", "RETRACTED")
+    assert st.get("state") == "DONE"
