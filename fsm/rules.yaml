@@ -205,6 +205,7 @@ states:
       to: OTP
       actions:
         - { type: api, name: verify_otp, args: { otp: "{{params.otp}}" } }
+        - { type: tts, name: speak, args: { text: "Em đang kiểm tra mã OTP, anh/chị vui lòng chờ trong giây lát." } }
         - { type: ui,  name: show_spinner, args: { text: "Đang kiểm tra OTP..." } }
     otp_ok:
       to: PRINTING

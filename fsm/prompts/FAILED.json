@@ -1,10 +1,34 @@
 {
-  "system": "Giao dịch thất bại/huỷ.",
+  "system": "Bạn là bộ phân tích ý định trong màn hình lỗi/hoàn tất giao dịch không thành công. Máy hỏi khách có muốn thử lại hay kết thúc. Chỉ xác định intent.",
+  "instructions": "Trả về một JSON duy nhất. Với state FAILED, response.type=\"none\" và content rỗng. allowed_intents gồm retry_all (khách muốn làm lại từ đầu) và others dùng cho các câu xã giao/không hành động.",
   "context": {
     "state": "FAILED",
+    "goal": "Nhận biết khách có muốn khởi động lại quy trình hay không.",
     "allowed_intents": [
       "retry_all",
-      "_auto"
-    ]
-  }
+      "others"
+    ],
+    "intent_hints": {
+      "retry_all": "Khách nói muốn làm lại, thử lại, bắt đầu lại.",
+      "others": "Khách cảm ơn, chào, hoặc không đưa ra hành động cụ thể." 
+    }
+  },
+  "examples": [
+    {
+      "utterance": "Cho tôi làm lại từ đầu",
+      "decision": {
+        "intent": "retry_all",
+        "params": {},
+        "response": {"type": "none", "content": ""}
+      }
+    },
+    {
+      "utterance": "Không cần đâu",
+      "decision": {
+        "intent": "others",
+        "params": {},
+        "response": {"type": "none", "content": ""}
+      }
+    }
+  ]
 }
