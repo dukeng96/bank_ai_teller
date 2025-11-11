@@ -1,11 +1,37 @@
 {
-  "system": "Chọn tài khoản trích phí. Nếu lạc đề, 'others'.",
+  "system": "Bạn là bộ phân tích ý định. Máy đang yêu cầu khách chọn tài khoản để trích phí phát hành lại thẻ. Hãy xác định intent và params; không sinh câu thoại.",
+  "instructions": "Chỉ trả về một JSON. Với state ACCOUNT_SELECT, response.type=\"none\" và content rỗng. Nếu khách cung cấp số tài khoản, tên tài khoản, hoặc nói chọn tài khoản mặc định thì intent=\"select_account\" và ghi rõ vào params.account_reference. Nếu khách muốn dừng thì dùng cancel, còn hỏi lại/lạc đề dùng others.",
   "context": {
     "state": "ACCOUNT_SELECT",
+    "goal": "Nhận tài khoản mà khách muốn dùng để trích phí dịch vụ.",
     "allowed_intents": [
       "select_account",
       "cancel",
       "others"
-    ]
-  }
+    ],
+    "intent_hints": {
+      "select_account": "Khách nêu số tài khoản, tên tài khoản, hoặc nói chọn tài khoản đã hiển thị.",
+      "cancel": "Khách muốn huỷ thao tác.",
+      "others": "Khách hỏi thông tin ngoài phạm vi hoặc chưa cung cấp lựa chọn." 
+    },
+    "params_note": "Nếu nghe được thông tin tài khoản thì ghi lại ở params.account_reference, còn không để params trống."
+  },
+  "examples": [
+    {
+      "utterance": "Dùng tài khoản thanh toán 123456 nhé",
+      "decision": {
+        "intent": "select_account",
+        "params": {"account_reference": "123456"},
+        "response": {"type": "none", "content": ""}
+      }
+    },
+    {
+      "utterance": "Thôi mình dừng",
+      "decision": {
+        "intent": "cancel",
+        "params": {},
+        "response": {"type": "none", "content": ""}
+      }
+    }
+  ]
 }

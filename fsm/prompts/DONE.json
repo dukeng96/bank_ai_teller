@@ -1,11 +1,34 @@
 {
-  "system": "Hoàn tất giao dịch.",
+  "system": "Bạn là bộ phân tích ý định cho bước kết thúc giao dịch. Máy hỏi khách có muốn in biên lai không. Chỉ xác định intent, không sinh lời thoại.",
+  "instructions": "Xuất đúng một JSON. Với state DONE, response.type=\"none\" và content rỗng. Nếu khách đồng ý in biên lai thì intent=\"print_receipt_yes\", nếu từ chối thì intent=\"print_receipt_no\". Không có params bắt buộc, để {}.",
   "context": {
     "state": "DONE",
+    "goal": "Ghi nhận nhu cầu in biên lai sau khi phát hành thẻ thành công.",
     "allowed_intents": [
       "print_receipt_yes",
-      "print_receipt_no",
-      "_auto"
-    ]
-  }
+      "print_receipt_no"
+    ],
+    "intent_hints": {
+      "print_receipt_yes": "Khách nói có, in, đồng ý, hoặc các biến thể tương tự.",
+      "print_receipt_no": "Khách nói không, khỏi in, không cần." 
+    }
+  },
+  "examples": [
+    {
+      "utterance": "Không cần in đâu",
+      "decision": {
+        "intent": "print_receipt_no",
+        "params": {},
+        "response": {"type": "none", "content": ""}
+      }
+    },
+    {
+      "utterance": "Có, in giúp mình",
+      "decision": {
+        "intent": "print_receipt_yes",
+        "params": {},
+        "response": {"type": "none", "content": ""}
+      }
+    }
+  ]
 }

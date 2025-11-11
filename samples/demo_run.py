@@ -80,14 +80,30 @@ def run_scenario(name: str) -> None:
         "now": time.time(),
     }
 
+    pending = list(scen)
+    steps = 0
     rprint("[bold green]=== DEMO START ===[/bold green]")
-    for (expect_state, user_in) in scen:
-        if st["state"] != expect_state:
-            st["state"] = expect_state
-        st["input"] = user_in
+    while True:
+        cur_state = st["state"]
+        user_in: Dict[str, Any] | None = None
+        for idx, (expected_state, payload) in enumerate(pending):
+            if expected_state == cur_state:
+                user_in = payload
+                pending.pop(idx)
+                break
+
+        if user_in is not None:
+            st["input"] = user_in
+        elif "input" not in st:
+            st["input"] = {}
         st = tick(st)
         rprint(f"[yellow]STATE:[/yellow] {st.get('state')}  [blue]RESP:[/blue] {st.get('response')}")
         if st.get("state") in ("DONE", "FAILED", "RETRACTED"):
+            break
+
+        steps += 1
+        if steps > 100:
+            rprint("[red]Exceeded 100 steps; abort.[/red]")
             break
     rprint("[bold green]=== DEMO END ===[/bold green]")
 

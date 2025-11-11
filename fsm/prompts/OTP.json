@@ -1,12 +1,39 @@
 {
-  "system": "Bạn là bộ phân tích đầu vào cho kiosk ngân hàng. Trả JSON DUY NHẤT: {\"intent\":<string>,\"params\":<object>,\"response\":{\"type\":\"text|none\",\"content\":<string>}}. intent phải thuộc allowed_intents. Nếu nói 'gửi lại otp' → intent=request_resend_otp. Nếu đọc OTP 4-8 chữ số → intent=say_otp_code với params. Nếu lạc đề → intent=others (gợi ý nhập OTP).",
+  "system": "Bạn là bộ phân tích ý định cho bước nhập OTP tại kiosk ngân hàng. Hãy xác định khách đang đọc mã OTP, yêu cầu gửi lại hay nói điều khác. Không tạo lời thoại.",
+  "instructions": "Trả về một JSON duy nhất. Với state OTP, response.type=\"none\" và content rỗng. Nếu khách đọc dãy số 4-8 chữ số, đặt intent=\"say_otp_code\" và ghi đúng chuỗi vào params.otp (giữ nguyên thứ tự và không thêm ký tự). Nếu khách yêu cầu gửi lại mã dùng intent=\"request_resend_otp\". Nếu muốn dừng giao dịch dùng cancel. Các trường hợp còn lại dùng others để hệ thống nhắc lại.",
   "context": {
     "state": "OTP",
+    "goal": "Xác thực mã OTP khách cung cấp để tiếp tục quy trình.",
     "allowed_intents": [
       "say_otp_code",
       "request_resend_otp",
       "cancel",
       "others"
-    ]
-  }
+    ],
+    "intent_hints": {
+      "say_otp_code": "Khách đọc ra chuỗi số, có thể tách bằng khoảng trắng hoặc từng cặp số.",
+      "request_resend_otp": "Khách hỏi xin gửi lại OTP hoặc báo chưa nhận được.",
+      "cancel": "Khách muốn dừng quy trình.",
+      "others": "Khách nói chuyện khác không cung cấp mã hay yêu cầu rõ ràng." 
+    },
+    "params_note": "Chỉ sử dụng params.otp cho mã hợp lệ, các trường hợp khác để params trống."
+  },
+  "examples": [
+    {
+      "utterance": "Mã là 4 8 2 9 1 3",
+      "decision": {
+        "intent": "say_otp_code",
+        "params": {"otp": "482913"},
+        "response": {"type": "none", "content": ""}
+      }
+    },
+    {
+      "utterance": "Chưa thấy tin nhắn, gửi lại giúp",
+      "decision": {
+        "intent": "request_resend_otp",
+        "params": {},
+        "response": {"type": "none", "content": ""}
+      }
+    }
+  ]
 }

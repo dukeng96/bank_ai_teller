@@ -14,27 +14,37 @@ def test_happy_path_shape() -> None:
         "now": time.time(),
     }
 
-    # Force start intent via next decision pass if needed
-    for _ in range(25):
+    mapping = {
+        "FACE": "face_ok",
+        "ID_SCAN": "id_ok",
+        "NFC_READ": "nfc_ok",
+        "CARD_SELECT": "select_card_type",
+        "ACCOUNT_SELECT": "select_account",
+        "STOCK_CHECK": "stock_ok",
+        "OTP_SEND": "_auto",
+        "PRINTING": "printed",
+        "CARD_PICKUP": "card_taken",
+        "DONE": "print_receipt_no",
+    }
+
+    for _ in range(30):
+        cur = st["state"]
+        next_input = None
+        if cur == "START":
+            next_input = {"channel": "voice", "payload": "phát hành lại thẻ"}
+        elif cur == "OTP":
+            if st.get("input", {}).get("channel") != "system":
+                next_input = {"channel": "voice", "payload": "482913"}
+        elif cur in mapping:
+            next_input = {"channel": "system", "signal": mapping[cur]}
+
+        if next_input is not None:
+            st["input"] = next_input
+        elif "input" not in st:
+            st["input"] = {}
+
         st = app.invoke(st)
         if st.get("state") in ("DONE", "FAILED", "RETRACTED"):
             break
-        # Drive system signals along the path
-        mapping = {
-            "FACE": "face_ok",
-            "ID_SCAN": "id_ok",
-            "NFC_READ": "nfc_ok",
-            "CARD_SELECT": "select_card_type",
-            "ACCOUNT_SELECT": "select_account",
-            "STOCK_CHECK": "stock_ok",
-            "OTP_SEND": "_auto",
-            "PRINTING": "printed",
-            "CARD_PICKUP": "card_taken",
-            "DONE": "print_receipt_no",
-        }
-        if st.get("state") in mapping:
-            st["input"] = {"channel": "system", "signal": mapping[st["state"]]}
-        elif st.get("state") == "OTP":
-            st["input"] = {"channel": "voice", "payload": "482913"}
 
-    assert st.get("state") in ("DONE", "FAILED", "RETRACTED")
+    assert st.get("state") == "DONE"
