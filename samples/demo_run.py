@@ -62,6 +62,7 @@ def tick(state: OrchestratorState) -> OrchestratorState:
 
 def run_scenario(name: str) -> None:
     scen = SCENARIOS[name]
+    pending = list(scen)
     st: OrchestratorState = {
         "state": "START",
         "ctx": {
@@ -80,29 +81,37 @@ def run_scenario(name: str) -> None:
         "now": time.time(),
     }
 
-    pending = list(scen)
-    steps = 0
     rprint("[bold green]=== DEMO START ===[/bold green]")
+    steps = 0
     while True:
-        cur_state = st["state"]
-        user_in: Dict[str, Any] = {}
-        for idx, (expected_state, payload) in enumerate(pending):
-            if expected_state == cur_state:
-                user_in = payload
-                pending.pop(idx)
-                break
+        # Nếu có input dành cho state hiện tại, bơm NGAY rồi tick
+        fed = False
+        while pending and pending[0][0] == st["state"]:
+            st["input"] = pending.pop(0)[1]
+            st = tick(st)   # chạy ngay, không để tick trống
+            rprint(f"[yellow]STATE:[/yellow] {st.get('state')}  [blue]RESP:[/blue] {st.get('response')}")
+            fed = True
+            if st.get("state") in ("DONE", "FAILED", "RETRACTED"):
+                rprint("[bold green]=== DEMO END ===[/bold green]")
+                return
 
-        st["input"] = user_in
-        st = tick(st)
-        rprint(f"[yellow]STATE:[/yellow] {st.get('state')}  [blue]RESP:[/blue] {st.get('response')}")
-        if st.get("state") in ("DONE", "FAILED", "RETRACTED"):
-            break
+        if not fed:
+            # ⚠️ Đừng xoá input nếu đang có system-signal được xếp hàng (ví dụ 'otp_ok')
+            queued = st.get("input") or {}
+            has_system_signal = queued.get("channel") == "system" and queued.get("signal")
+            if not has_system_signal:
+                st["input"] = {}
+            # Dù có hay không, đều tick để máy tiêu thụ tín hiệu / xử lý timer
+            st = tick(st)
+            rprint(f"[yellow]STATE:[/yellow] {st.get('state')}  [blue]RESP:[/blue] {st.get('response')}")
+            if st.get("state") in ("DONE", "FAILED", "RETRACTED"):
+                rprint("[bold green]=== DEMO END ===[/bold green]")
+                return
 
         steps += 1
         if steps > 100:
             rprint("[red]Exceeded 100 steps; abort.[/red]")
-            break
-    rprint("[bold green]=== DEMO END ===[/bold green]")
+            return
 
 if __name__ == "__main__":
     name = "happy"
